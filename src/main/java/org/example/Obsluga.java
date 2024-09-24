@@ -5,11 +5,13 @@ import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -31,6 +33,8 @@ public class Obsluga {
 
     List<Paragon> paragons_all = new ArrayList<>();
     List<Paragon> paragons_waiting = new ArrayList<>();
+
+    List<ObjectOutputStream> monitory = new ArrayList<>();
 
     public void start() throws FileNotFoundException {
 
@@ -65,21 +69,54 @@ public class Obsluga {
 
         JMenuBar menuBar = new JMenuBar();
 
+        int font_size = 28;
+
         JMenu historyMenu = new JMenu("Historia");
+
+        historyMenu.setFont(new Font("Arial", Font.PLAIN, font_size)); // Zmieniona czcionka
+
         JMenuItem history_not_paid = new JMenuItem("Do Płacenia");
         JMenuItem history_all = new JMenuItem("Wszystkie");
 
+        history_not_paid.setFont(new Font("Arial", Font.PLAIN, font_size));
+        history_all.setFont(new Font("Arial", Font.PLAIN, font_size));
+
         JMenu exitMenu = new JMenu("Zamknij");
+
+        exitMenu.setFont(new Font("Arial", Font.PLAIN, font_size));
+
         JMenuItem exitItem = new JMenuItem("Zamknij aplikację");
         exitItem.addActionListener(e -> System.exit(0)); // Wyjście z aplikacji
+        exitItem.setFont(new Font("Arial", Font.PLAIN, font_size));
+
+        JMenu addDeviceMenu = new JMenu("Dodaj urządzenie");
+
+        addDeviceMenu.setFont(new Font("Arial", Font.PLAIN, font_size));
+
+        JMenuItem monitorItem = new JMenuItem("Dodaj monitor");
+
+        monitorItem.setFont(new Font("Arial", Font.PLAIN, font_size));
+
+        monitorItem.addActionListener(e -> new AddNewMonitor().start(monitory));
+        JMenuItem tabletItem = new JMenuItem("Dodaj tablet");
+
+        tabletItem.setFont(new Font("Arial", Font.PLAIN, font_size));
+
+        //exitItem.addActionListener(e -> new AddNewMonitor().start());
 
         exitMenu.add(exitItem);
 
         historyMenu.add(history_not_paid);
         historyMenu.add(history_all);
 
+        addDeviceMenu.add(monitorItem);
+        addDeviceMenu.add(tabletItem);
+
         menuBar.add(historyMenu);
         menuBar.add(exitMenu);
+        menuBar.add(addDeviceMenu);
+
+        menuBar.setPreferredSize(new Dimension(200, 40));
 
         frame.setJMenuBar(menuBar);
         // Uzyskiwanie rozmiarów ekranu
@@ -351,7 +388,11 @@ public class Obsluga {
 
 
         // Pole notatki
-        JTextArea noteArea = new JTextArea("", 5, 10);
+        JTextArea noteArea;
+        if(product.getNotatka() != null)
+            noteArea = new JTextArea("" + product.getNotatka(), 5, 10);
+        else
+            noteArea = new JTextArea("", 5, 10);
         noteArea.setLineWrap(true);
         noteArea.setWrapStyleWord(true);
 
@@ -359,9 +400,10 @@ public class Obsluga {
 
         // Przycisk do zwiększania ilości
         JButton decreaseButton = new JButton("-");
-        JTextField quantityField = new JTextField("1", 3); // Pole na ilość
+        if(product.getIlosc() == 0)
+            product.setIlosc(1);
+        JTextField quantityField = new JTextField("" + product.getIlosc(), 3); // Pole na ilość
         quantityField.setHorizontalAlignment(JTextField.CENTER);
-        product.setIlosc(1);
         JButton increaseButton = new JButton("+");
         increaseButton.addActionListener(e -> {
             int currentQty = Integer.parseInt(quantityField.getText());
@@ -414,7 +456,7 @@ public class Obsluga {
     {
         if(aktualny.getProducts().isEmpty())
             return;
-        //showPopup(frame);
+        showPopup(frame);
 
         for (int i = 0; i < notes_of_actual_products.size(); i++) {
             JTextArea note = notes_of_actual_products.get(i);
@@ -429,10 +471,33 @@ public class Obsluga {
         // Sformatowanie czasu do stringa
         String formattedTime = currentTime.format(formatter);
 
-        aktualny.setCreate_time(formattedTime);
+        if(aktualny.getCreate_time() != null) {
+            aktualny.setCreate_time(formattedTime);
+        }
+
+        aktualny.getProducts().sort(Comparator.comparingInt(Produkt_na_paragonie::getKod_z_kasy));
 
         paragons_all.add(aktualny);
         paragons_waiting.add(aktualny);
+
+        paragons_waiting.sort(Comparator.comparingInt(Paragon::getId));
+        paragons_all.sort(Comparator.comparingInt(Paragon::getId));
+
+        // wysylka
+        for(ObjectOutputStream out : monitory)
+        {
+            try {
+                out.writeUTF("ADD_PARAGON"); // Typ danych
+                out.writeObject(aktualny); // Serializacja obiektu
+                out.flush();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+
+
         aktualny = new Paragon(id_paragonow);
         id_paragonow++;
 
@@ -454,13 +519,13 @@ public class Obsluga {
         mainPanel_paragons.revalidate();
         mainPanel_paragons.repaint();
 
-
-        // wysylka
     }
 
     private void CancelButtonLogic()
     {
         aktualny.removeAllProducts();
+        int id = aktualny.getId();
+        aktualny = new Paragon(id);
         productsPanel.removeAll();
         productPanels.clear();
         notes_of_actual_products.clear();
@@ -480,10 +545,38 @@ public class Obsluga {
         JPanel numberPanel = new JPanel(new FlowLayout());
         JLabel numberLabel = new JLabel("Numer stolika:");
         numberLabel.setFont(new Font("Arial", Font.PLAIN, 30)); // Zwiększenie rozmiaru tekstu
-        JTextField numberField = new JTextField(4);
+        JTextField numberField;
+        if(aktualny.getNumer_stolika() != 0)
+        {
+            numberField = new JTextField(""+ aktualny.getNumer_stolika(),4 );
+
+        }
+        else
+        {
+            numberField = new JTextField(4 );
+        }
         numberField.setFont(new Font("Arial", Font.PLAIN, 30)); // Zwiększenie rozmiaru pola tekstowego
         numberPanel.add(numberLabel);
         numberPanel.add(numberField);
+
+        JPanel kelnerPanel = new JPanel(new FlowLayout());
+        JLabel kelnerLabel = new JLabel("Kelner:");
+        numberLabel.setFont(new Font("Arial", Font.PLAIN, 30)); // Zwiększenie rozmiaru tekstu
+        JTextField kelnerField;
+        if(aktualny.getKelner() != null)
+        {
+            kelnerField = new JTextField(""+ aktualny.getKelner(),4 );
+
+        }
+        else
+        {
+            kelnerField = new JTextField(4 );
+        }
+        kelnerField.setFont(new Font("Arial", Font.PLAIN, 30)); // Zwiększenie rozmiaru pola tekstowego
+        kelnerPanel.add(kelnerLabel);
+        kelnerPanel.add(kelnerField);
+
+
 
         // Radio buttons (Tak/Nie)
         JPanel radioPanel = new JPanel(new FlowLayout());
@@ -493,6 +586,7 @@ public class Obsluga {
         yesButton.setFont(new Font("Arial", Font.PLAIN, 30)); // Zwiększenie rozmiaru przycisku
         JRadioButton noButton = new JRadioButton("Nie");
         noButton.setFont(new Font("Arial", Font.PLAIN, 30));  // Zwiększenie rozmiaru przycisku
+        noButton.setSelected(true);
         ButtonGroup radioGroup = new ButtonGroup();
         radioGroup.add(yesButton);
         radioGroup.add(noButton);
@@ -510,6 +604,7 @@ public class Obsluga {
             public void actionPerformed(ActionEvent e) {
                 // Pobieranie wartości z pola tekstowego i radiobuttonów
                 String numberInput = numberField.getText();
+                String kelnerInput = kelnerField.getText();
                 boolean isYesSelected = yesButton.isSelected();
                 boolean isNoSelected = noButton.isSelected();
 
@@ -517,12 +612,14 @@ public class Obsluga {
                     JOptionPane.showMessageDialog(popupDialog, "Musisz wpisać liczbę!", "Błąd", JOptionPane.ERROR_MESSAGE);
                 } else if (!isYesSelected && !isNoSelected) {
                     JOptionPane.showMessageDialog(popupDialog, "Musisz wybrać opcję Tak lub Nie!", "Błąd", JOptionPane.ERROR_MESSAGE);
+                }else if (kelnerInput.isEmpty()) {
+                    JOptionPane.showMessageDialog(popupDialog, "Musisz wpisać kelnera!", "Błąd", JOptionPane.ERROR_MESSAGE);
                 } else {
 
                     // Możemy wyświetlić to w konsoli (lub wykonać inne akcje)
                     aktualny.setNumer_stolika(Integer.parseInt(numberInput));
                     aktualny.setZaplacony(isYesSelected);
-
+                    aktualny.setKelner(kelnerInput);
 
                     // Zamknięcie okna po zatwierdzeniu
                     popupDialog.dispose();
@@ -532,6 +629,7 @@ public class Obsluga {
 
         // Dodanie komponentów do okna dialogowego
         popupDialog.add(numberPanel);
+        popupDialog.add(kelnerPanel);
         popupDialog.add(radioPanel);
         popupDialog.add(confirmButton);
 
@@ -545,7 +643,7 @@ public class Obsluga {
 
         // Utworzenie obramowania z większą czcionką
         Font titleFont = new Font("Arial", Font.BOLD, 28);
-        TitledBorder border = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.BLACK), "Stolik: " + paragon.getNumer_stolika());
+        TitledBorder border = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.BLACK), "Stolik: " + paragon.getNumer_stolika() + " " + paragon.getKelner());
         border.setTitleFont(titleFont);
         panel.setBorder(border);
 
@@ -581,8 +679,31 @@ public class Obsluga {
 
             // Dodanie akcji zmiany koloru tekstu i tła
             changeColorButton.addActionListener(e -> {
-                productTextArea.setForeground(Color.GRAY);
-                productTextArea.setBackground(Color.LIGHT_GRAY);
+                productTextArea.setForeground(Color.WHITE);
+                productTextArea.setBackground(Color.RED);
+                if(produkt.getCzas_wydania() == null) {
+                    LocalTime currentTime = LocalTime.now();
+
+                    // Ustalenie formatu HH:mm
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+
+                    // Sformatowanie czasu do stringa
+                    String formattedTime = currentTime.format(formatter);
+                    productTextArea.append(formattedTime);
+                    produkt.setCzas_wydania(formattedTime);
+
+                    for (ObjectOutputStream out : monitory) {
+                        try {
+                            out.writeUTF("DELETE_PRODUCT"); // Typ danych
+                            out.writeObject(paragon.getId()); // Serializacja obiektu
+                            out.writeObject(produkt); // Serializacja obiektu
+                            out.flush();
+                        } catch (IOException er) {
+                            er.printStackTrace();
+                        }
+                    }
+                }
+
             });
 
             // Dodanie komponentów do panelu produktu
@@ -606,10 +727,73 @@ public class Obsluga {
             parentPanel.remove(panel);
             parentPanel.revalidate();
             parentPanel.repaint();
-        });
 
+            for(ObjectOutputStream out : monitory)
+            {
+                try {
+                    out.writeUTF("DELETE_PARAGON"); // Typ danych
+                    out.writeObject(paragon.getId()); // Serializacja obiektu
+                    out.flush();
+                }
+                catch (IOException er)
+                {
+                    er.printStackTrace();
+                }
+            }
+
+        });
+        JButton editButton = new JButton("Edytuj");
+        editButton.setFont(new Font("Arial", Font.BOLD, 16));
+        editButton.setPreferredSize(new Dimension(100, 40)); // Ustawienie stałej wysokości
+        editButton.setBackground(Color.GREEN);
+
+        editButton.addActionListener(e -> {
+
+            paragons_waiting.remove(paragon);
+            parentPanel.remove(panel);
+            parentPanel.revalidate();
+            parentPanel.repaint();
+
+            for(ObjectOutputStream out : monitory)
+            {
+                try {
+                    out.writeUTF("DELETE_PARAGON"); // Typ danych
+                    out.writeObject(paragon.getId()); // Serializacja obiektu
+                    out.flush();
+                }
+                catch (IOException er)
+                {
+                    er.printStackTrace();
+                }
+            }
+
+            CancelButtonLogic();
+            aktualny = new Paragon(aktualny.getId());
+
+            aktualny.setId(paragon.getId());
+            aktualny.setNumer_stolika(paragon.getNumer_stolika());
+            aktualny.setCreate_time(paragon.getCreate_time());
+            aktualny.setKelner(paragon.getKelner());
+
+            for(ObjectOutputStream out : monitory)
+            {
+                try {
+                    out.reset();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+
+            for(Produkt_na_paragonie p : paragon.getProducts())
+            {
+                aktualny.addProduct(p);
+                addProduct(p);
+            }
+
+        });
         // Ustawienie przycisku na dole
         JPanel buttonPanelBottom = new JPanel(new FlowLayout(FlowLayout.RIGHT)); // FlowLayout dla przycisku usuwania
+        buttonPanelBottom.add(editButton);
         buttonPanelBottom.add(removeButton);
         panel.add(buttonPanelBottom, BorderLayout.SOUTH); // Dodanie panelu z przyciskiem na dół
 

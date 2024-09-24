@@ -1,14 +1,16 @@
 package org.example;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Paragon {
+public class Paragon implements Serializable {
     private int id;
     private String create_time;
     private String destroy_time;
     private int numer_stolika;
     private boolean zaplacony;
+    private String kelner;
 
     List<Produkt_na_paragonie> products = new ArrayList<>();
 
@@ -25,8 +27,20 @@ public class Paragon {
         return id;
     }
 
+    public String getKelner() {
+        return kelner;
+    }
+
+    public void setKelner(String kelner) {
+        this.kelner = kelner;
+    }
+
     public List<Produkt_na_paragonie> getProducts() {
         return products;
+    }
+
+    public void setProducts(List<Produkt_na_paragonie> products) {
+        this.products = products;
     }
 
     public String getCreate_time() {
