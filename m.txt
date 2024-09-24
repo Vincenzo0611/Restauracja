@@ -1,0 +1,98 @@
+Przystawki
+0
+Carpaccio wolowe
+1
+Tatar
+38
+Watrobka 
+2
+Zupy
+0
+Harira
+4
+Gulaszowa 
+5
+Flaki
+6
+Rosol 
+7
+Zupa dnia 
+8
+Dania Glowne
+0
+Wolowina demi-glace
+9
+Ossobuco wolowe
+25
+Klopsiki Krolewickie
+10
+Lasagne 
+26
+Jagniecina po rzymsku
+27
+Kozina w sosie korzennym
+28
+Dodatki
+53
+Grill
+0
+Stek 
+29
+Burger wolowy
+30
+Dla Dzieci
+0
+Rosolek z makaronem
+33
+Pomidorowa z makaronem
+34
+Pierozki z twarogiem
+35
+Makaron z sosem 
+36
+Desery
+0
+Deser 
+20
+Napoje
+0
+Woda
+17
+Kompot 1L
+16
+Tymbark
+22
+Kawa
+18
+Espresso
+37
+Herbata
+19
+Alkohole
+0
+Monica di sard. 125ml
+40
+Monica di sard. - 0,75
+41
+Montefalco 125ml
+42
+Montefalco 0,75
+43
+Montefalco Riserva 
+44
+Falconaro 
+45
+Primitivo di Manduria 
+46
+Barolo
+47
+Primitivo Puglia 
+48
+Chimera Riserva
+49
+Vermentino 125ml 
+50
+Vermentino 0,75l
+51
+Nuragus di Cagliari
+52
