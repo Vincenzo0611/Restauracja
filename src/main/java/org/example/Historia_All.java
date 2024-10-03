@@ -24,6 +24,7 @@ public class Historia_All extends JFrame {
         // Tworzymy główny panel z siatką (GridLayout z 6 panelami w wierszu)
         JPanel mainPanel = new JPanel(new GridLayout(0, 6, 10, 10)); // 6 kolumn, dynamiczna liczba wierszy
 
+
         // Dodajemy panele dla każdego paragonu
         for (Paragon paragon : paragons_all) {
             JPanel paragonPanel = createParagonPanel(paragon, mainPanel);

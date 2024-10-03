@@ -984,6 +984,7 @@ public class Obsluga {
         sb.append("Kelner: ").append(paragon.getKelner()).append("\n");
         sb.append("Produkty:\n");
 
+
         for (Produkt_na_paragonie produkt : paragon.getProducts()) {
             sb.append("\tNazwa: ").append(produkt.getNazwa()).append("\n");
             sb.append("\tIlosc: ").append(produkt.getIlosc()).append("\n");

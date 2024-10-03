@@ -14,6 +14,7 @@ public class Paragon implements Serializable {
 
     List<Produkt_na_paragonie> products = new ArrayList<>();
 
+
     public Paragon(int id)
     {
         this.id = id;

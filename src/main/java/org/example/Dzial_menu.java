@@ -12,7 +12,6 @@ public class Dzial_menu {
     {
         this.nazwa = nazwa;
     }
-
     public String getNazwa() {
         return nazwa;
     }

@@ -17,7 +17,9 @@ public class Produkt_z_menu implements Serializable {
         return nazwa;
     }
 
-    public int getId() {
+    public int getId()
+    {
+
         return id;
     }
 

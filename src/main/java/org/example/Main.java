@@ -14,6 +14,7 @@ public class Main {
         frame.setSize(500, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+
         // Ustawienie menedżera układu na FlowLayout
         frame.setLayout(new FlowLayout());
 

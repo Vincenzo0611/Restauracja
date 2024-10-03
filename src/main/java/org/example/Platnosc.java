@@ -95,6 +95,7 @@ public class Platnosc extends JFrame {
                 productTextArea.append(produkt.getCzas_wydania());
             }*/
 
+
             JTextArea kodTextArea = new JTextArea();
             kodTextArea.setFont(new Font("Arial", Font.PLAIN, 20));
             kodTextArea.setEditable(false);

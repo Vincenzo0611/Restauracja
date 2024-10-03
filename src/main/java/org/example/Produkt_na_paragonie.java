@@ -8,6 +8,7 @@ public class Produkt_na_paragonie extends Produkt_z_menu implements Serializable
     private int numer_na_paragonie;
     private String czas_wydania;
 
+
     public Produkt_na_paragonie(Produkt_z_menu produkt, int numer)
     {
         super(produkt.getNazwa(), produkt.getId(), produkt.getKod_z_kasy());
