@@ -7,6 +7,7 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.*;
+import java.util.Enumeration;
 import java.util.List;
 
 public class AddNewMonitor {
@@ -15,9 +16,11 @@ public class AddNewMonitor {
     private DatagramSocket socket;
 
     JFrame okno = new JFrame();
+    List<Paragon> paragons_waiting;
 
-    public void start(List<ObjectOutputStream> monitory)
+    public void start(List<ObjectOutputStream> monitory, List<Paragon> paragons_waiting)
     {
+        this.paragons_waiting = paragons_waiting;
         // Ustawienia okna
         okno.setTitle("Broadcast Serwer");
         okno.setSize(300, 150);
@@ -62,7 +65,43 @@ public class AddNewMonitor {
                 // Jeśli klient szuka serwera, odpowiedz
                 if ("DISCOVER_SERVER".equals(message)) {
                     // Pobieranie adresu IP serwera (lokalny IP)
-                    String serverIP = InetAddress.getLocalHost().getHostAddress();
+                    String serverIP = null;
+                    try {
+
+                        // Przejrzyj wszystkie interfejsy sieciowe
+                        Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+
+                        while (interfaces.hasMoreElements()) {
+                            NetworkInterface networkInterface = interfaces.nextElement();
+
+                            // Pomiń interfejsy, które są wyłączone lub nie mają IP
+                            if (!networkInterface.isUp() || networkInterface.isLoopback()) {
+                                continue;
+                            }
+
+                            // Przejrzyj wszystkie adresy przypisane do tego interfejsu
+                            Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
+
+                            while (addresses.hasMoreElements()) {
+                                InetAddress inetAddress = addresses.nextElement();
+
+                                // Sprawdź czy jest to adres IPv4
+                                if (inetAddress instanceof Inet4Address && !inetAddress.isLoopbackAddress()) {
+                                    serverIP = inetAddress.getHostAddress(); // Zapisz ostatni napotkany adres
+                                }
+                            }
+                        }
+
+                        // Wyświetl ostatni napotkany adres IP
+                        if (serverIP != null) {
+                            System.out.println("Ostatni adres IP: " + serverIP);
+                        } else {
+                            System.out.println("Nie znaleziono adresu IP.");
+                        }
+
+                    } catch (SocketException e) {
+                        e.printStackTrace();
+                    }
                     byte[] sendData = serverIP.getBytes();
 
                     // Wysyłanie odpowiedzi do klienta
@@ -111,7 +150,27 @@ public class AddNewMonitor {
             while (true) {
                 Socket socket = serverSocket.accept(); // Akceptuje połączenie od klienta
                 System.out.println("Klient połączony: " + socket.getInetAddress());
-                monitory.add(new ObjectOutputStream(socket.getOutputStream()));
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                monitory.add(out);
+                for(Paragon p : paragons_waiting)
+                {
+                    out.writeUTF("ADD_PARAGON"); // Typ danych
+                    out.writeObject(p); // Serializacja obiektu
+                    out.flush();/*
+                    for(Produkt_na_paragonie product : p.getProducts())
+                    {
+                        if(product.getCzas_wydania() != null)
+                        {
+                            try {
+                                out.writeUTF("DELETE_PRODUCT"); // Typ danych
+                                out.writeObject(p); // Serializacja obiektu
+                                out.flush();
+                            } catch (IOException er) {
+                                er.printStackTrace();
+                            }
+                        }
+                    }*/
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

@@ -70,9 +70,35 @@ Herbata
 19
 Alkohole
 0
-Monica di sard. 125ml
+Monica_di sard.-125ml
 40
-Monica di sard. - 0,75
+Monica_di sard.-0,75
+41
+Montefalco 125ml
+42
+Montefalco 0,75
+43
+Montefalco Riserva 
+44
+Falconaro 
+45
+Primitivo di Manduria 
+46
+Barolo
+47
+Primitivo Puglia 
+48
+Chimera Riserva
+49
+Vermentino 125ml 
+50
+Vermentino 0,75l
+51
+Nuragus di Cagliari
+52
+Monica_di sard.-125ml
+40
+Monica_di sard.-0,75
 41
 Montefalco 125ml
 42

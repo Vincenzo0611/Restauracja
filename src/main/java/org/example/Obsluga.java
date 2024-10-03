@@ -8,6 +8,7 @@ import java.awt.event.*;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ public class Obsluga {
     JFrame frame;
     JFrame okno_paragony;
     JPanel mainPanel_paragons;
+    private boolean wasPopUpClosed = false;
     private static List<JPanel> productPanels = new ArrayList<>();
     private static List<JTextArea> notes_of_actual_products = new ArrayList<>();
     private static JPanel productsPanel; // Panel przechowujący wszystkie produkty
@@ -59,6 +61,7 @@ public class Obsluga {
             } else {
                 aktualny_dzial.produkty.add(new Produkt_z_menu(nazwa, id, kod));
             }
+            id++;
         }
         scanner.close();
         menu.add(aktualny_dzial);
@@ -76,7 +79,10 @@ public class Obsluga {
         historyMenu.setFont(new Font("Arial", Font.PLAIN, font_size)); // Zmieniona czcionka
 
         JMenuItem history_not_paid = new JMenuItem("Do Płacenia");
+
+        history_not_paid.addActionListener(e -> new Platnosc("Płatność", paragons_all, this));
         JMenuItem history_all = new JMenuItem("Wszystkie");
+        history_all.addActionListener(e -> new Historia_All("Historia", paragons_all, this));
 
         history_not_paid.setFont(new Font("Arial", Font.PLAIN, font_size));
         history_all.setFont(new Font("Arial", Font.PLAIN, font_size));
@@ -86,7 +92,30 @@ public class Obsluga {
         exitMenu.setFont(new Font("Arial", Font.PLAIN, font_size));
 
         JMenuItem exitItem = new JMenuItem("Zamknij aplikację");
-        exitItem.addActionListener(e -> System.exit(0)); // Wyjście z aplikacji
+        exitItem.addActionListener(e -> {
+            // Wyświetlenie okna dialogowego z pytaniem
+            int response = JOptionPane.showConfirmDialog(null,
+                    "Czy na pewno chcesz zamknąć aplikację?",
+                    "Potwierdzenie zamknięcia",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+
+            // Sprawdzamy odpowiedź użytkownika
+            if (response == JOptionPane.YES_OPTION) {
+
+                try {
+                    String fileName = generateFileNameWithDateTime();
+                    zapiszParagonyDoPliku(paragons_all, fileName);
+                } catch (IOException error) {
+                    error.printStackTrace();
+                }
+
+
+                System.exit(0);  // Zamknięcie aplikacji
+            }
+            // Jeśli wybrano NO_OPTION lub okno zostało zamknięte, aplikacja kontynuuje działanie
+        });
+
         exitItem.setFont(new Font("Arial", Font.PLAIN, font_size));
 
         JMenu addDeviceMenu = new JMenu("Dodaj urządzenie");
@@ -97,7 +126,8 @@ public class Obsluga {
 
         monitorItem.setFont(new Font("Arial", Font.PLAIN, font_size));
 
-        monitorItem.addActionListener(e -> new AddNewMonitor().start(monitory));
+        monitorItem.addActionListener(e -> new AddNewMonitor().start(monitory, paragons_waiting));
+
         JMenuItem tabletItem = new JMenuItem("Dodaj tablet");
 
         tabletItem.setFont(new Font("Arial", Font.PLAIN, font_size));
@@ -195,6 +225,7 @@ public class Obsluga {
         // Ustawienie nowej szerokości paska przewijania (np. na 30 pikseli)
         verticalScrollBar.setPreferredSize(new Dimension(50, Integer.MAX_VALUE));
 
+
         // Dodanie paneli do okna
         frame.add(panel1);
         frame.add(scrollPane);
@@ -256,7 +287,7 @@ public class Obsluga {
         for (Produkt_z_menu produkt : dzial.produkty) {
             String buttonText = "<html><div style='text-align: center;'>" + produkt.getNazwa().replace(" ", "<br>") + "</div></html>";
             JButton productButton = new JButton(buttonText);
-            productButton.setFont(new Font("Arial", Font.PLAIN, 20)); // Zwiększenie czcionki przycisku
+            //productButton.setFont(new Font("Arial", Font.PLAIN, 20)); // Zwiększenie czcionki przycisku
             productGridPanel.add(productButton);
 
             // ActionListener dla przycisków produktów
@@ -294,14 +325,14 @@ public class Obsluga {
         JButton addButton = new JButton("Dodaj");
         addButton.setBackground(Color.GREEN);
         addButton.setForeground(Color.WHITE);
-        addButton.setPreferredSize(new Dimension(150, 50));
+        //addButton.setPreferredSize(new Dimension(150, 50));
         addButton.setFont(new Font("Arial", Font.BOLD, 20));
         bottomButtonsPanel.add(addButton);
 
         JButton cancelButton = new JButton("Anuluj");
         cancelButton.setBackground(Color.RED);
         cancelButton.setForeground(Color.WHITE);
-        cancelButton.setPreferredSize(new Dimension(150, 50));
+        //cancelButton.setPreferredSize(new Dimension(150, 50));
         cancelButton.setFont(new Font("Arial", Font.BOLD, 20));
         bottomButtonsPanel.add(cancelButton);
 
@@ -383,33 +414,38 @@ public class Obsluga {
     }
 
     private void addProduct(Produkt_na_paragonie product) {
+        // Główny panel dla produktu
         JPanel productPanel = new JPanel();
-        productPanel.setLayout(new FlowLayout());
+        productPanel.setLayout(new BoxLayout(productPanel, BoxLayout.Y_AXIS)); // Ustawienie pionowego układu
 
+        // Panel dla nazwy produktu, ilości i przycisku usuń (wszystko w jednej linii)
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.X_AXIS)); // Ustawienie poziomego układu
 
-        // Pole notatki
-        JTextArea noteArea;
-        if(product.getNotatka() != null)
-            noteArea = new JTextArea("" + product.getNotatka(), 5, 10);
-        else
-            noteArea = new JTextArea("", 5, 10);
-        noteArea.setLineWrap(true);
-        noteArea.setWrapStyleWord(true);
+        // Nazwa produktu
+        JLabel nameLabel = new JLabel(product.getNazwa());
 
-        notes_of_actual_products.add(noteArea);
-
-        // Przycisk do zwiększania ilości
+        // Pole do wyświetlania ilości
         JButton decreaseButton = new JButton("-");
-        if(product.getIlosc() == 0)
+        if (product.getIlosc() == 0)
             product.setIlosc(1);
-        JTextField quantityField = new JTextField("" + product.getIlosc(), 3); // Pole na ilość
+        // Pole do wyświetlania ilości
+        JTextField quantityField = new JTextField("" + product.getIlosc(), 2);
         quantityField.setHorizontalAlignment(JTextField.CENTER);
+
+        // Ustawianie stałej wysokości i szerokości
+        Dimension size = new Dimension(40, 30); // Szerokość 40 i wysokość 30, można dostosować
+        quantityField.setPreferredSize(size);
+        quantityField.setMinimumSize(size);
+        quantityField.setMaximumSize(size);
+
         JButton increaseButton = new JButton("+");
         increaseButton.addActionListener(e -> {
             int currentQty = Integer.parseInt(quantityField.getText());
             quantityField.setText(String.valueOf(currentQty + 1));
             product.setIlosc(Integer.parseInt(quantityField.getText()));
         });
+
         decreaseButton.addActionListener(e -> {
             int currentQty = Integer.parseInt(quantityField.getText());
             if (currentQty > 1) {
@@ -418,21 +454,40 @@ public class Obsluga {
             }
         });
 
-        // Przycisk do usuwania produktu
+        // Przycisk "Usuń"
         JButton removeButton = new JButton("Usuń");
+
+        // Dodawanie komponentów do topPanel (wszystko w jednej linii)
+        topPanel.add(nameLabel);
+        topPanel.add(Box.createHorizontalStrut(10)); // Dodanie odstępu między nazwą a przyciskami
+        topPanel.add(decreaseButton);
+        topPanel.add(quantityField);
+        topPanel.add(increaseButton);
+        topPanel.add(Box.createHorizontalGlue()); // Wypchnięcie przycisku "Usuń" na prawo
+        topPanel.add(removeButton);
+
+        // Pole notatki
+        JTextArea noteArea = new JTextArea(product.getNotatka() != null ? product.getNotatka() : "", 3, 20); // Mniejsza liczba kolumn dla mniej rozciągniętego pola
+        noteArea.setLineWrap(true);
+        noteArea.setWrapStyleWord(true);
+        JScrollPane scrollPane = new JScrollPane(noteArea); // Dodanie przewijania do notatki
+
+        // Ustawianie stałej wysokości i szerokości
+        Dimension sizen = new Dimension(150, 30); // Szerokość 40 i wysokość 30, można dostosować
+        noteArea.setPreferredSize(sizen);
+        noteArea.setMinimumSize(sizen);
+        noteArea.setMaximumSize(sizen);
+
+
         removeButton.addActionListener(e -> removeProduct(productPanel, noteArea, product.getNumer_na_paragonie()));
 
-        // Dodawanie komponentów do panelu produktu
+        notes_of_actual_products.add(noteArea);
 
-        String name = "<html><div style='text-align: center;'>" + product.getNazwa().replace(" ", "<br>") + "</div></html>";
-        productPanel.add(new JLabel(name));
-        productPanel.add(decreaseButton);
-        productPanel.add(quantityField);
-        productPanel.add(increaseButton);
-        productPanel.add(new JScrollPane(noteArea)); // Notatka z możliwością przewijania
-        productPanel.add(removeButton);
+        // Dodanie paneli do głównego panelu
+        productPanel.add(topPanel); // Pierwsza linia: nazwa, ilość, przyciski
+        productPanel.add(scrollPane); // Druga linia: pole notatki
 
-        // Dodanie panelu produktu do głównego panelu
+        // Dodanie głównego panelu produktu do głównego panelu produktów
         productsPanel.add(productPanel);
         productPanels.add(productPanel);
 
@@ -440,6 +495,8 @@ public class Obsluga {
         productsPanel.revalidate();
         productsPanel.repaint();
     }
+
+
 
     private void removeProduct(JPanel productPanel, JTextArea noteArea, int numer_produktu) {
         aktualny.removeProduct_number(numer_produktu);
@@ -457,6 +514,12 @@ public class Obsluga {
         if(aktualny.getProducts().isEmpty())
             return;
         showPopup(frame);
+        if(!wasPopUpClosed)
+        {
+            return;
+        }
+
+        wasPopUpClosed = false;
 
         for (int i = 0; i < notes_of_actual_products.size(); i++) {
             JTextArea note = notes_of_actual_products.get(i);
@@ -471,11 +534,11 @@ public class Obsluga {
         // Sformatowanie czasu do stringa
         String formattedTime = currentTime.format(formatter);
 
-        if(aktualny.getCreate_time() != null) {
+        if(aktualny.getCreate_time() == null) {
             aktualny.setCreate_time(formattedTime);
         }
 
-        aktualny.getProducts().sort(Comparator.comparingInt(Produkt_na_paragonie::getKod_z_kasy));
+        aktualny.getProducts().sort(Comparator.comparingInt(Produkt_na_paragonie::getId));
 
         paragons_all.add(aktualny);
         paragons_waiting.add(aktualny);
@@ -608,7 +671,7 @@ public class Obsluga {
                 boolean isYesSelected = yesButton.isSelected();
                 boolean isNoSelected = noButton.isSelected();
 
-                if (numberInput.isEmpty()) {
+                if (numberInput.isEmpty() || !isInteger(numberInput)) {
                     JOptionPane.showMessageDialog(popupDialog, "Musisz wpisać liczbę!", "Błąd", JOptionPane.ERROR_MESSAGE);
                 } else if (!isYesSelected && !isNoSelected) {
                     JOptionPane.showMessageDialog(popupDialog, "Musisz wybrać opcję Tak lub Nie!", "Błąd", JOptionPane.ERROR_MESSAGE);
@@ -621,6 +684,8 @@ public class Obsluga {
                     aktualny.setZaplacony(isYesSelected);
                     aktualny.setKelner(kelnerInput);
 
+                    wasPopUpClosed = true;
+
                     // Zamknięcie okna po zatwierdzeniu
                     popupDialog.dispose();
                 }
@@ -632,6 +697,14 @@ public class Obsluga {
         popupDialog.add(kelnerPanel);
         popupDialog.add(radioPanel);
         popupDialog.add(confirmButton);
+
+        popupDialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // Flaga ustawiona na true, gdy okno zostanie zamknięte przez "X"
+                wasPopUpClosed = true;
+            }
+        });
 
         // Wyświetlenie okna
         popupDialog.setVisible(true);
@@ -646,6 +719,14 @@ public class Obsluga {
         TitledBorder border = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.BLACK), "Stolik: " + paragon.getNumer_stolika() + " " + paragon.getKelner());
         border.setTitleFont(titleFont);
         panel.setBorder(border);
+
+        // Tworzenie subtytułu
+        JLabel subtitleLabel = new JLabel(paragon.getCreate_time());
+        subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 20));
+        subtitleLabel.setHorizontalAlignment(SwingConstants.CENTER);  // Wyrównanie do środka
+
+        // Dodanie subtytułu do panelu (na dole panelu)
+        panel.add(subtitleLabel, BorderLayout.NORTH);
 
         // Panel dla produktów
         JPanel productsPanel = new JPanel();
@@ -665,9 +746,16 @@ public class Obsluga {
             productTextArea.setLineWrap(true);
             productTextArea.setBackground(Color.WHITE);
 
+            if(produkt.getCzas_wydania() != null)
+            {
+                productTextArea.setForeground(Color.WHITE);
+                productTextArea.setBackground(Color.decode("#FF7F7F"));
+                productTextArea.append(produkt.getCzas_wydania());
+            }
+
             // Przycisk do zmiany koloru
             JButton changeColorButton = new JButton("X");
-            changeColorButton.setPreferredSize(new Dimension(100, 30)); // Ustawienie stałej szerokości i wysokości
+            changeColorButton.setPreferredSize(new Dimension(50, 100)); // Ustawienie stałej szerokości i wysokości
 
             // Użycie GridBagLayout, aby wyśrodkować przycisk w pionie
             JPanel buttonPanel = new JPanel(new GridBagLayout());
@@ -679,9 +767,9 @@ public class Obsluga {
 
             // Dodanie akcji zmiany koloru tekstu i tła
             changeColorButton.addActionListener(e -> {
-                productTextArea.setForeground(Color.WHITE);
-                productTextArea.setBackground(Color.RED);
                 if(produkt.getCzas_wydania() == null) {
+                    productTextArea.setForeground(Color.WHITE);
+                    productTextArea.setBackground(Color.decode("#FF7F7F"));
                     LocalTime currentTime = LocalTime.now();
 
                     // Ustalenie formatu HH:mm
@@ -694,9 +782,32 @@ public class Obsluga {
 
                     for (ObjectOutputStream out : monitory) {
                         try {
+                            out.reset();
                             out.writeUTF("DELETE_PRODUCT"); // Typ danych
-                            out.writeObject(paragon.getId()); // Serializacja obiektu
-                            out.writeObject(produkt); // Serializacja obiektu
+                            out.writeObject(paragon); // Serializacja obiektu
+                            out.flush();
+                        } catch (IOException er) {
+                            er.printStackTrace();
+                        }
+                    }
+                }
+                else
+                {
+                    productTextArea.setForeground(Color.BLACK);
+                    productTextArea.setBackground(Color.WHITE);
+                    if (productTextArea.getText().length() >= 5) {
+                        // Pobierz aktualny tekst
+                        String currentText = productTextArea.getText();
+
+                        // Usuń ostatnie 5 znaków
+                        productTextArea.replaceRange("", currentText.length() - 5, currentText.length());
+                    }
+                    produkt.setCzas_wydania(null);
+                    for (ObjectOutputStream out : monitory) {
+                        try {
+                            out.reset();
+                            out.writeUTF("DELETE_PRODUCT"); // Typ danych
+                            out.writeObject(paragon); // Serializacja obiektu
                             out.flush();
                         } catch (IOException er) {
                             er.printStackTrace();
@@ -719,7 +830,7 @@ public class Obsluga {
         // Dodanie przycisku usuwania paragonu
         JButton removeButton = new JButton("Usuń paragon");
         removeButton.setFont(new Font("Arial", Font.BOLD, 16));
-        removeButton.setPreferredSize(new Dimension(180, 40)); // Ustawienie stałej wysokości
+        //removeButton.setPreferredSize(new Dimension(180, 40)); // Ustawienie stałej wysokości
         removeButton.setBackground(Color.RED);
 
         removeButton.addActionListener(e -> {
@@ -728,9 +839,21 @@ public class Obsluga {
             parentPanel.revalidate();
             parentPanel.repaint();
 
+            LocalTime currentTime = LocalTime.now();
+
+            // Ustalenie formatu HH:mm
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+
+            // Sformatowanie czasu do stringa
+            String formattedTime = currentTime.format(formatter);
+
+
+            paragon.setDestroy_time(formattedTime);
+
             for(ObjectOutputStream out : monitory)
             {
                 try {
+                    out.reset();
                     out.writeUTF("DELETE_PARAGON"); // Typ danych
                     out.writeObject(paragon.getId()); // Serializacja obiektu
                     out.flush();
@@ -744,12 +867,13 @@ public class Obsluga {
         });
         JButton editButton = new JButton("Edytuj");
         editButton.setFont(new Font("Arial", Font.BOLD, 16));
-        editButton.setPreferredSize(new Dimension(100, 40)); // Ustawienie stałej wysokości
+        //editButton.setPreferredSize(new Dimension(100, 40)); // Ustawienie stałej wysokości
         editButton.setBackground(Color.GREEN);
 
         editButton.addActionListener(e -> {
 
             paragons_waiting.remove(paragon);
+            paragons_all.remove(paragon);
             parentPanel.remove(panel);
             parentPanel.revalidate();
             parentPanel.repaint();
@@ -800,7 +924,87 @@ public class Obsluga {
         return panel;
     }
 
+    public void addParagonFromHistory(Paragon p)
+    {
+        p.setDestroy_time(null);
+        paragons_waiting.add(p);
+        paragons_waiting.sort(Comparator.comparingInt(Paragon::getId));
+        // wysylka
+        for(ObjectOutputStream out : monitory)
+        {
+            try {
+                out.writeUTF("ADD_PARAGON"); // Typ danych
+                out.writeObject(p); // Serializacja obiektu
+                out.flush();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
 
+        mainPanel_paragons.removeAll();
+
+        //na okno obok
+        for (Paragon paragon : paragons_waiting) {
+            JPanel paragonPanel = createParagonPanel(paragon, mainPanel_paragons);
+            mainPanel_paragons.add(paragonPanel);
+        }
+
+        mainPanel_paragons.revalidate();
+        mainPanel_paragons.repaint();
+
+    }
+
+
+    public boolean isInteger(String str) {
+        try {
+            Integer.parseInt(str);
+            return true; // Jeśli parsowanie się powiedzie, zwracamy true
+        } catch (NumberFormatException e) {
+            return false; // Jeśli wystąpi wyjątek, zwracamy false
+        }
+    }
+
+    public static void zapiszParagonyDoPliku(List<Paragon> paragony, String filePath) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (Paragon paragon : paragony) {
+                writer.write(paragonToString(paragon));
+                writer.newLine();  // Przejście do nowej linii po każdym paragonie
+            }
+        }
+    }
+
+    public static String paragonToString(Paragon paragon) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Numer stolika: ").append(paragon.getNumer_stolika()).append("\n");
+        sb.append("Czas utworzenia: ").append(paragon.getCreate_time()).append("\n");
+        sb.append("Czas zamknięcia: ").append(paragon.getDestroy_time()).append("\n");
+        sb.append("Zaplacony: ").append(paragon.isZaplacony() ? "Tak" : "Nie").append("\n");
+        sb.append("Kelner: ").append(paragon.getKelner()).append("\n");
+        sb.append("Produkty:\n");
+
+        for (Produkt_na_paragonie produkt : paragon.getProducts()) {
+            sb.append("\tNazwa: ").append(produkt.getNazwa()).append("\n");
+            sb.append("\tIlosc: ").append(produkt.getIlosc()).append("\n");
+            sb.append("\tNotatka: ").append(produkt.getNotatka()).append("\n");
+            sb.append("\tCzas wydania: ").append(produkt.getCzas_wydania() != null ? produkt.getCzas_wydania() : "N/A").append("\n");
+            sb.append("\n");
+        }
+        sb.append("-------------------------------\n");
+        return sb.toString();
+    }
+
+    public static String generateFileNameWithDateTime() {
+        // Pobieramy bieżącą datę i godzinę
+        LocalDateTime now = LocalDateTime.now();
+
+        // Formatujemy datę na styl: "yyyyMMdd_HHmmss" (np. 20240929_143500)
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm");
+
+        // Zwracamy nazwę pliku z rozszerzeniem .txt
+        return "historia\\" + now.format(formatter) + ".txt";
+    }
 
 }
 
